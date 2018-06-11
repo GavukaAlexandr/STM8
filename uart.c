@@ -11,7 +11,7 @@
 #define CLRBIT(REG, VALUE) REG &= ~VALUE
 #define SETBIT(REG, VALUE) REG |= ~VALUE
 
-char *buffer;
+char buffer[50];
 int buffer_position = 0;
 int buffer_size = 0;
 
@@ -27,6 +27,7 @@ void uart1_isr(void) __interrupt(UART1_TXC_vector) {
     if (buffer_position < buffer_size)
       UART1_DR = buffer[buffer_position++];
     else {
+      buffer_position = 0;
       // Transfer complete. Disable interrupts.
       // The main loop detects this condition.
       CLRBIT(UART1_CR2, UART_CR2_TIEN);
@@ -35,9 +36,14 @@ void uart1_isr(void) __interrupt(UART1_TXC_vector) {
 }
 
 void putstring(char *s) {
-  buffer = s;
-  buffer_position = 0;
-  buffer_size = strlen(s);
+  strcat(buffer, s);
+  // buffer = s;
+  // buffer_position = 0;
+  if(buffer_size <= 50) buffer_size = buffer_size + strlen(s);
+  else {
+  buffer_size = 0; 
+  memset(&buffer[0], 0, sizeof(buffer));
+  } 
   // Enables the interrupt, which is called immediately if TXE is already set.
   SETBIT(UART1_CR2, UART_CR2_TIEN);
 }
@@ -75,9 +81,13 @@ int main() {
 	  for (;;) {
     putstring("Hello world!\n");
     do {
+      // putstring("before wfi\n");
       wfi(); // Puts the processor in wait mode until an interrupt is received.
+      // putstring("after wfi\n");
     } while (UART1_CR2 & UART_CR2_TIEN); // When the transmission is complete, the interrupt handler clears this flag.
-
+      // putstring("afasdfas wfi\n");
     for (i = 0; i < 147456; i++); // Sleep
+    // putstring("sfdgsdfs\n");
+
   }
 }
